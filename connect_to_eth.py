@@ -3,6 +3,7 @@ from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware
 from web3.providers.rpc import HTTPProvider
 
+
 '''
 If you use one of the suggested infrastructure providers, the url will be of the form
 now_url  = f"https://eth.nownodes.io/{now_token}"
@@ -36,7 +37,7 @@ def connect_with_middleware(contract_json):
 	# and https://web3py.readthedocs.io/en/stable/web3.contract.html
 
 	# Inject middleware for BNB testnet compatibility
-	w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+	w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
 	# Create the contract object
 	contract = w3.eth.contract(address=address, abi=abi)
