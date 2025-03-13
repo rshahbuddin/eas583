@@ -24,25 +24,24 @@ def connect_with_middleware(contract_json):
 		address = d['address']
 		abi = d['abi']
 
-# TODO complete this method
-# The first section will be the same as "connect_to_eth()" but with a BNB url
-bnb_url = "https://bsc-testnet.nodereal.io/v1/f01ec9b5369c475d850e8e8ee2a18681"
-w3 = Web3(HTTPProvider(bnb_url))
-
-# Verify connection
-assert w3.is_connected(), f"Failed to connect to BNB testnet at {bnb_url}"
+	# TODO complete this method
+	# The first section will be the same as "connect_to_eth()" but with a BNB url
+	bnb_url = "https://bsc-testnet.nodereal.io/v1/f01ec9b5369c475d850e8e8ee2a18681"
+	w3 = Web3(HTTPProvider(bnb_url))
+	# Verify connection
+	assert w3.is_connected(), f"Failed to connect to BNB testnet at {bnb_url}"
     
-# The second section requires you to inject middleware into your w3 object and
-# create a contract object. Read more on the docs pages at https://web3py.readthedocs.io/en/stable/middleware.html
-# and https://web3py.readthedocs.io/en/stable/web3.contract.html
-	
-# Inject middleware for BNB testnet compatibility
-w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+	# The second section requires you to inject middleware into your w3 object and
+	# create a contract object. Read more on the docs pages at https://web3py.readthedocs.io/en/stable/middleware.html
+	# and https://web3py.readthedocs.io/en/stable/web3.contract.html
 
-# Create the contract object
-contract = w3.eth.contract(address=address, abi=abi)
+	# Inject middleware for BNB testnet compatibility
+	w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-return w3, contract
+	# Create the contract object
+	contract = w3.eth.contract(address=address, abi=abi)
+
+	return w3, contract
 
 
 if __name__ == "__main__":
