@@ -23,7 +23,7 @@ def get_from_ipfs(cid,content_type="json"):
 	assert isinstance(cid,str), f"get_from_ipfs accepts a cid in the form of a string"
 	#YOUR CODE HERE	
 
-	response = requests.get(f"{INFURA_API_URL}/cat?arg={cid}" auth=(INFURA_PROJECT_ID, INFURA_PROJECT_SECRET))
+	response = requests.get(f"{INFURA_API_URL}/cat?arg={cid}", auth=(INFURA_PROJECT_ID, INFURA_PROJECT_SECRET))
 
 	if response.status_code == 200:
 		data = json.loads(response.text)
