@@ -10,9 +10,15 @@
   "preview": {
         "Project Index (static)": "https://{{domain}}/{{index}}",
         "Current File (static)": "https://{{domain}}/{{filepath}}",
+<<<<<<< HEAD
         "Box URL": "http://{{domain3000}}/",
         "Box URL SSL": "https://{{domain3000}}/"
   },
   "autogradeTestScripts": [".guides/secure/autograde.py"],
   "debugger": [{"type":"PYTHON3","command":".guides/tests/runtests.py","before":"","uuid":"88940e19-332c-7ab8-0602-e7051730f8f7","name":"Run Tests"}]
+=======
+        "Box URL": "https://{{domain3000}}/"
+  },
+  "debugger": [{"type":"PYTHON3","command":".guides/tests/runtests.py","before":"","uuid":"5c208513-22d9-5c53-1ded-4eb868209f32","name":"Debug"}]
+>>>>>>> 9657b38c4c96fbec93b1c12ed0cfdb05593694a7
 }
