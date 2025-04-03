@@ -6,6 +6,7 @@ from pathlib import Path
 from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware  # Necessary for POA chains
 from eth_account.messages import encode_defunct
+from web3.middleware import geth_poa_middleware
 
 def merkle_assignment():
     num_of_primes = 8192
@@ -79,6 +80,7 @@ def send_signed_msg(proof, random_leaf):
     acct = get_account()
     address, abi = get_contract_info(chain)
     w3 = connect_to(chain)
+    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
     contract = w3.eth.contract(address=address, abi=abi)
 
     if not isinstance(proof, list):
@@ -89,11 +91,19 @@ def send_signed_msg(proof, random_leaf):
     else:
         raise ValueError("Leaf must be a single 32-byte element.")
 
+    tx = contract.functions.submit(proof, leaf_bytes32).buildTransaction({
+        'from': acct.address,
+        'gas': 2000000,
+        'gasPrice': w3.toWei('5', 'gwei'),
+        'nonce': w3.eth.getTransactionCount(acct.address),
+        'chainId': 97
+    })
+
+    signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
+
     try:
-        tx = contract.functions.submit(proof, leaf_bytes32).transact({
-            'from': acct.address
-        })
-        print(f"Transaction sent: {tx}")
+        tx_hash = w3.eth.sendRawTransaction(signed_tx.RawTransaction)
+        print(f"Transaction sent: {tx_hash.hex()}")
     except Exception as e:
         print(f"Error sending transaction: {e}")
 
