@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from web3 import Web3
 from eth_account.messages import encode_defunct
-from web3.middleware.geth_poa import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 
 def merkle_assignment():
     num_of_primes = 8192
@@ -123,7 +123,7 @@ def connect_to(chain):
         api_url = f"https://data-seed-prebsc-1-s1.binance.org:8545/"  # BSC testnet
     w3 = Web3(Web3.HTTPProvider(api_url))
 
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
     return w3
 
