@@ -92,7 +92,7 @@ def send_signed_msg(proof, random_leaf):
         'from': acct.address,
         'gas': 2000000,
         'gasPrice': Web3.to_wei('5', 'gwei'),
-        'nonce': w3.eth.getTransactionCount(acct.address),
+        'nonce': w3.eth.get_transaction_count(acct.address),
         'chainId': 97
     })
 
