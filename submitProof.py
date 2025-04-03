@@ -98,7 +98,10 @@ def send_signed_msg(proof, random_leaf):
 
     signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
 
-    raw_tx = signed_tx.rawTransaction
+		raw_tx = getattr(signed_tx, 'rawTransaction', None)
+    
+    if raw_tx is None:
+        raise ValueError("Signed transaction does not contain rawTransaction attribute.")
 
     tx_hash = w3.eth.send_raw_transaction(raw_tx)
     print(f"Transaction sent: {tx_hash.hex()}")
