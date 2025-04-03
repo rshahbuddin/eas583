@@ -84,31 +84,18 @@ def send_signed_msg(proof, random_leaf):
     if not isinstance(proof, list):
         raise ValueError("Proof should be a list of merkle proof elements.")
 
-    formatted_proof = []
-    for element in proof:
-        formatted_proof.append(Web3.solidity_keccak(['bytes'], [element]))
+    if isinstance(leaf, bytes) and len(leaf) == 32:
+        leaf_bytes32 = leaf
+    else:
+        raise ValueError("Leaf must be a single 32-byte element.")
 
-    leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
-
-    if len(leaf_bytes32) != 32:
-        raise ValueError(f"Leaf must be a 32-byte value, but got {len(leaf_bytes32)} bytes.")
-        
     try:
-        tx = contract.functions.submit(formatted_proof, leaf_bytes32).build_transaction({
-            'from': acct.address,
-            'nonce': w3.eth.get_transaction_count(acct.address),
-            'gas': 250000,
-            'gasPrice': int(w3.eth.gas_price * 1.2)
+        tx = contract.functions.submit(proof, leaf_bytes32).transact({
+            'from': acct
         })
-
-        signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
-
-        tx_hash = w3.eth.send_transaction(signed_tx)
-        return tx_hash.hex()
-
+        print(f"Transaction sent: {tx}")
     except Exception as e:
         print(f"Error sending transaction: {e}")
-        raise
 
 
 # Helper functions that do not need to be modified
