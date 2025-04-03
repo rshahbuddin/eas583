@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from web3 import Web3
 from eth_account.messages import encode_defunct
-from web3.middleware import geth_poa_middleware
+#from web3.middleware import geth_poa_middleware
 
 def merkle_assignment():
     num_of_primes = 8192
