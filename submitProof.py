@@ -4,9 +4,7 @@ import string
 import json
 from pathlib import Path
 from web3 import Web3
-#from web3.middleware import ExtraDataToPOAMiddleware  # Necessary for POA chains
 from eth_account.messages import encode_defunct
-from web3.middleware import geth_poa_middleware
 
 def merkle_assignment():
     num_of_primes = 8192
@@ -80,7 +78,6 @@ def send_signed_msg(proof, random_leaf):
     acct = get_account()
     address, abi = get_contract_info(chain)
     w3 = connect_to(chain)
-    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
     contract = w3.eth.contract(address=address, abi=abi)
 
     if not isinstance(proof, list):
@@ -122,8 +119,6 @@ def connect_to(chain):
     else:
         api_url = f"https://data-seed-prebsc-1-s1.binance.org:8545/"  # BSC testnet
     w3 = Web3(Web3.HTTPProvider(api_url))
-    # inject the poa compatibility middleware to the innermost layer
-    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
     return w3
 
