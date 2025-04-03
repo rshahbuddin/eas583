@@ -86,7 +86,7 @@ def send_signed_msg(proof, random_leaf):
 
     formatted_proof = []
     for element in proof:
-        formatted_proof.append((Web3.solidity_keccak(['bytes'], [element]))
+        formatted_proof.append(Web3.solidity_keccak(['bytes'], [element]))
 
     leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
 
