@@ -86,10 +86,9 @@ def send_signed_msg(proof, random_leaf):
 
     formatted_proof = []
     for element in proof:
-        proof_element = (Web3.solidity_keccak(['bytes'], [element]), random_leaf)
-        formatted_proof.append(proof_element)
+        formatted_proof.append(Web3.solidity_keccak(['bytes'], [element])
 
-    leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
+    leaf_bytes32 = random_leaf
 
     if len(leaf_bytes32) != 32:
         raise ValueError(f"Leaf must be a 32-byte value, but got {len(leaf_bytes32)} bytes.")
