@@ -95,7 +95,7 @@ def send_signed_msg(proof, random_leaf):
         raise ValueError(f"Leaf must be a 32-byte value, but got {len(leaf_bytes32)} bytes.")
         
     try:
-        tx = contract.functions.submit(proof, leaf_bytes32).build_transaction({
+        tx = contract.functions.submit(formatted_proof, leaf_bytes32).build_transaction({
             'from': acct.address,
             'nonce': w3.eth.get_transaction_count(acct.address),
             'gas': 250000,
