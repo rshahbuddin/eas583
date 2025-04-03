@@ -84,8 +84,8 @@ def send_signed_msg(proof, random_leaf):
     if not isinstance(proof, list):
         raise ValueError("Proof should be a list of merkle proof elements.")
 
-    if isinstance(leaf, bytes) and len(leaf) == 32:
-        leaf_bytes32 = leaf
+    if isinstance(random_leaf, bytes) and len(random_leaf) == 32:
+        leaf_bytes32 = random_leaf
     else:
         raise ValueError("Leaf must be a single 32-byte element.")
 
