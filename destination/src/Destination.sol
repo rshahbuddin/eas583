@@ -43,7 +43,7 @@ contract Destination is AccessControl {
   function createToken(address _underlying_token, string memory name, string memory symbol ) public onlyRole(CREATOR_ROLE) returns(address) {
     require(underlying_tokens[_underlying_token] == address(0), "Token already created");
 
-    BridgeToken newToken = new BridgeToken(name, symbol, _underlying_token);
+    BridgeToken newToken = new BridgeToken(name, symbol, _underlying_token, msg.sender);
     address wrappedAddress = address(newToken);
 
     underlying_tokens[_underlying_token] = wrappedAddress;
