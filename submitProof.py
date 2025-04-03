@@ -89,6 +89,13 @@ def send_signed_msg(proof, random_leaf):
     else:
         raise ValueError("Leaf must be a single 32-byte element.")
 
+    owned_prime = contract.functions.getPrimeByOwner(acct.address).call()
+    print(f"Already owned prime before submitting: {owned_prime}")
+
+    # **Debugging Output: Print the proof and leaf being submitted**
+    print(f"Submitting leaf: {leaf_bytes32.hex()} with proof: {proof}")
+
+
     tx = contract.functions.submit(proof, leaf_bytes32).build_transaction({
         'from': acct.address,
         'gas': 2000000,
@@ -103,6 +110,17 @@ def send_signed_msg(proof, random_leaf):
 
     tx_hash = w3.eth.send_raw_transaction(raw_tx)
     print(f"Transaction sent: {tx_hash.hex()}")
+
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Transaction receipt: {receipt}")
+
+    if receipt.status == 0:
+      print("Transaction failed!")
+      return None
+    
+    new_owned_prime = contract.functions.getPrimeByOwner(acct.address).call()
+    print(f"Owned prime after submitting: {new_owned_prime}")
+
     return tx_hash.hex()
 
 # Helper functions that do not need to be modified
