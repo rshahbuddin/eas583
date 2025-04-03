@@ -102,7 +102,7 @@ def send_signed_msg(proof, random_leaf):
     signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
 
     try:
-        tx_hash = w3.eth.sendRawTransaction(signed_tx.RawTransaction)
+        tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
         print(f"Transaction sent: {tx_hash.hex()}")
     except Exception as e:
         print(f"Error sending transaction: {e}")
