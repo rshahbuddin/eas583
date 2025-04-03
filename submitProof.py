@@ -81,7 +81,7 @@ def send_signed_msg(proof, random_leaf):
     w3 = connect_to(chain)
     contract = w3.eth.contract(address=address, abi=abi)
 
-    tx = contract.functions.claimPrime(random_leaf, proof).build_transaction({
+    tx = contract.functions.submit(random_leaf, proof).build_transaction({
         'from': acct.address,
         'nonce': w3.eth.get_transaction_count(acct.address),
         'gas': 250000,
