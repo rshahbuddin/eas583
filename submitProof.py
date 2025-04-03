@@ -80,7 +80,16 @@ def send_signed_msg(proof, random_leaf):
     address, abi = get_contract_info(chain)
     w3 = connect_to(chain)
     contract = w3.eth.contract(address=address, abi=abi)
+
+    if not isinstance(proof, list):
+        raise ValueError("Proof should be a list of merkle proof elements.")
+    if len(proof) == 0:
+        raise ValueError("Proof list cannot be empty.")
+
     leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
+
+    if len(leaf_bytes32) != 32:
+        raise ValueError("Leaf should be a 32-byte value.")
 
     tx = contract.functions.submit(proof, leaf_bytes32).build_transaction({
         'from': acct.address,
@@ -90,9 +99,14 @@ def send_signed_msg(proof, random_leaf):
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
-    tx_hash = w3.eth.send_transaction(signed_tx)
-    return tx_hash.hex()
 
+    try:
+        tx_hash = w3.eth.send_transaction(signed_tx)
+        print(f"Transaction sent: {tx_hash.hex()}")
+        return tx_hash.hex()
+    except Exception as e:
+        print(f"Error sending transaction: {e}")
+        raise
 
 
 # Helper functions that do not need to be modified
