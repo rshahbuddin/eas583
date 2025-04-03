@@ -89,12 +89,12 @@ def send_signed_msg(proof, random_leaf):
     else:
         raise ValueError("Leaf must be a single 32-byte element.")
 
-    tx = contract.functions.submit(proof, leaf_bytes32).buildTransaction({
+    tx = contract.functions.submit(proof, leaf_bytes32).build_transaction({
         'from': acct.address,
         'gas': 2000000,
         'gasPrice': w3.to_wei('5', 'gwei'),
         'nonce': w3.eth.get_transaction_count(acct.address),
-        'chainId': 97
+        #'chainId': 97
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, acct.privateKey)
