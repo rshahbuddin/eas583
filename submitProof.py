@@ -84,7 +84,11 @@ def send_signed_msg(proof, random_leaf):
     if not isinstance(proof, list):
         raise ValueError("Proof should be a list of merkle proof elements.")
 
-    proof = [Web3.solidity_keccak(['bytes'], [el]) for el in proof]
+    formatted_proof = []
+    for element in proof:
+        proof_element = (Web3.solidity_keccak(['bytes'], [element]), random_leaf)
+        formatted_proof.append(proof_element)
+
     leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
 
     if len(leaf_bytes32) != 32:
