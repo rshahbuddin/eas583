@@ -91,7 +91,7 @@ def send_signed_msg(proof, random_leaf):
 
     try:
         tx = contract.functions.submit(proof, leaf_bytes32).transact({
-            'from': acct
+            'from': acct.address
         })
         print(f"Transaction sent: {tx}")
     except Exception as e:
