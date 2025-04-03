@@ -94,7 +94,6 @@ def send_signed_msg(proof, random_leaf):
         'gas': 2000000,
         'gasPrice': w3.to_wei('5', 'gwei'),
         'nonce': w3.eth.get_transaction_count(acct.address),
-        #'chainId': 97
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
