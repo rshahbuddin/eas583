@@ -97,7 +97,7 @@ def send_signed_msg(proof, random_leaf):
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, acct.key)
-
+		
 		raw_tx = getattr(signed_tx, 'rawTransaction', None)
     
     if raw_tx is None:
