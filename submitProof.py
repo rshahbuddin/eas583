@@ -80,8 +80,7 @@ def send_signed_msg(proof, random_leaf):
     address, abi = get_contract_info(chain)
     w3 = connect_to(chain)
     contract = w3.eth.contract(address=address, abi=abi)
-
-		leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
+    leaf_bytes32 = Web3.solidity_keccak(['bytes'], [random_leaf])
 
     tx = contract.functions.submit(proof, leaf_bytes32).build_transaction({
         'from': acct.address,
