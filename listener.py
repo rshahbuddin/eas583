@@ -14,8 +14,8 @@ def scan_blocks(chain, start_block, end_block, contract_address, eventfile='depo
     end_block - integer last block to scan
     contract_address - the address of the deployed contract
 
-	This function reads "Deposit" events from the specified contract, 
-	and writes information about the events to the file "deposit_logs.csv"
+    This function reads "Deposit" events from the specified contract, 
+    and writes information about the events to the file "deposit_logs.csv"
     """
     if chain == 'avax':
         api_url = f"https://api.avax-test.network/ext/bc/C/rpc" #AVAX C-chain testnet
@@ -50,44 +50,44 @@ def scan_blocks(chain, start_block, end_block, contract_address, eventfile='depo
     else:
         print( f"Scanning blocks {start_block} - {end_block} on {chain}" )
 
-		event_data = []
+    event_data = []
 
     if end_block - start_block < 30:
         event_filter = contract.events.Deposit.create_filter(from_block=start_block,to_block=end_block,argument_filters=arg_filter)
         events = event_filter.get_all_entries()
         #print( f"Got {len(events)} entries for block {block_num}" )
         # TODO YOUR CODE HERE
-				for evt in events:
-					event_data.append({
-						'chain': chain,
-						'token': evt.args['token'],
-						'recipient': evt.args['recipient'],
-						'amount': evt.args['amount'],
-						'transactionHash': evt.transactionHash.hex(),
-						'address': evt.address
-					})
+        for evt in events:
+            event_data.append({
+                'chain': chain,
+                'token': evt.args['token'],
+                'recipient': evt.args['recipient'],
+                'amount': evt.args['amount'],
+                'transactionHash': evt.transactionHash.hex(),
+                'address': evt.address
+            })
     else:
         for block_num in range(start_block,end_block+1):
             event_filter = contract.events.Deposit.create_filter(from_block=block_num,to_block=block_num,argument_filters=arg_filter)
             events = event_filter.get_all_entries()
             #print( f"Got {len(events)} entries for block {block_num}" )
             # TODO YOUR CODE HERE
-						for evt in events:
-							event_data.append({
-								'chain': chain,
-								'token': evt.args['token'],
-								'recipient': evt.args['recipient'],
-								'amount': evt.args['amount'],
-								'transactionHash': evt.transactionHash.hex(),
-								'address': evt.address
-							})
+            for evt in events:
+                event_data.append({
+                    'chain': chain,
+                    'token': evt.args['token'],
+                    'recipient': evt.args['recipient'],
+                    'amount': evt.args['amount'],
+                    'transactionHash': evt.transactionHash.hex(),
+                    'address': evt.address
+                })
 
-		df = pd.DataFrame(event_data)
-		df['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    df = pd.DataFrame(event_data)
+    df['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-		if not Path(eventfile).exists():
-			df.to_csv(eventfile, index=False, header=True)
-		else:
-			df.to_csv(eventfile, mode='a', header=False, index=False)
+    if not Path(eventfile).exists():
+        df.to_csv(eventfile, index=False, header=True)
+    else:
+        df.to_csv(eventfile, mode='a', header=False, index=False)
 
-		print(f"Finished scanning blocks {start_block} - {end_block} on {chain}")
+    print(f"Finished scanning blocks {start_block} - {end_block} on {chain}")
