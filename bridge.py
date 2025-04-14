@@ -73,7 +73,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
             print("No Deposit events found.")
             return
 
-        print(f"Found {len(events)} Deposit events.")
+        #print(f"Found {len(events)} Deposit events.")
 
         w3_dest = connect_to("destination")
         dest_contract_data = get_contract_info("destination", contract_info)
@@ -89,7 +89,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
 
             print(f"Relaying Deposit: token={token}, recipient={recipient}, amount={amount}")
 
-            txn = dest_contract.functions.unwrap(token, recipient, amount).build_transaction({
+            txn = dest_contract.functions.wrap(token, recipient, amount).build_transaction({
                 'chainId': 97,
                 'from': account.address,
                 'nonce': w3_dest.eth.get_transaction_count(account.address),
@@ -99,7 +99,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
 
             signed_txn = w3_dest.eth.account.sign_transaction(txn, PRIVATE_KEY)
             tx_hash = w3_dest.eth.send_raw_transaction(signed_txn.rawTransaction)
-            print(f"Unwrap transaction sent: {tx_hash.hex()}")
+            print(f"Wrap transaction sent: {tx_hash.hex()}")
 
     elif chain == "destination":
         print("Scanning destination chain for Unwrap events")
@@ -109,7 +109,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
             print("No Unwrap events found.")
             return
 
-        print(f"Found {len(events)} Unwrap events.")
+        #print(f"Found {len(events)} Unwrap events.")
 
         w3_source = connect_to("source")
         source_contract_data = get_contract_info("source", contract_info)
