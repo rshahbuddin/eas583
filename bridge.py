@@ -39,7 +39,7 @@ def handle_deposit_event(event, destination_contract, destination_w3, contract_i
     deposit_data = event['args']
     print(f"Deposit Data: {deposit_data}")
     
-    destination_contract.functions.wrap(deposit_data["amount"], deposit_data["receiver"]).transact({
+    destination_contract.functions.wrap(deposit_data["amount"], deposit_data["recipient"]).transact({
         "from": contract_info["destination_chain_wallet_address"],
         "gas": 2000000
     })
@@ -49,7 +49,7 @@ def handle_unwrap_event(event, source_contract, source_w3, contract_info):
     unwrap_data = event['args']
     print(f"Unwrap Data: {unwrap_data}")
     
-    source_contract.functions.withdraw(unwrap_data["amount"], unwrap_data["receiver"]).transact({
+    source_contract.functions.withdraw(unwrap_data["amount"], unwrap_data["recipient"]).transact({
         "from": contract_info["source_chain_wallet_address"],
         "gas": 2000000
     })
