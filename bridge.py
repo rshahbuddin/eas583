@@ -31,7 +31,7 @@ def connect_to(chain):
     except ImportError:
         pass
 
-    if not w3.isConnected():
+    if not w3.is_connected():
         raise ConnectionError(f"Failed to connect to {chain} RPC at {api_url}")
 
     return w3
