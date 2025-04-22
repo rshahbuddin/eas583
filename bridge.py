@@ -63,9 +63,9 @@ def handle_deposit_event(event, destination_contract, destination_w3, destinatio
         deposit_data["amount"]
     ).build_transaction({
         "from": Web3.to_checksum_address(from_address),
-        "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
+        "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address), "pending"),
         "gas": 2000000,
-        "gasPrice": destination_w3.eth.gas_price,
+        "gasPrice": int(destination_w3.eth.gas_price * 1.2),
         "chainId": destination_info.get("chainId"),
     })
 
@@ -89,9 +89,9 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
         unwrap_data["amount"]
     ).build_transaction({
         "from": Web3.to_checksum_address(from_address),
-        "nonce": source_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
+        "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address), "pending"),
         "gas": 2000000,
-        "gasPrice": source_w3.eth.gas_price,
+        "gasPrice": int(destination_w3.eth.gas_price * 1.2),
 				"chainId": source_info.get("chainId"),
     })
 
