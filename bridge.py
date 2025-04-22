@@ -57,20 +57,10 @@ def handle_unwrap_event(event, source_contract, source_w3, contract_info):
 
 
 def scan_blocks(chain, contract_info="contract_info.json"):
-    """
-        chain - (string) should be either "source" or "destination"
-        Scan the last 5 blocks of the source and destination chains
-        Look for 'Deposit' events on the source chain and 'Unwrap' events on the destination chain
-        When Deposit events are found on the source chain, call the 'wrap' function the destination chain
-        When Unwrap events are found on the destination chain, call the 'withdraw' function on the source chain
-    """
-
-    # This is different from Bridge IV where chain was "avax" or "bsc"
-    if chain not in ['source','destination']:
-        print( f"Invalid chain: {chain}" )
+    if chain not in ['source', 'destination']:
+        print(f"Invalid chain: {chain}")
         return 0
-    
-        #YOUR CODE HERE
+
     with open(contract_info, 'r') as f:
         all_contract_info = json.load(f)
 
@@ -83,14 +73,21 @@ def scan_blocks(chain, contract_info="contract_info.json"):
     source_contract = source_w3.eth.contract(address=source_info['address'], abi=source_info['abi'])
     destination_contract = destination_w3.eth.contract(address=destination_info['address'], abi=destination_info['abi'])
 
-    deposit_event_filter = source_contract.events.Deposit.createFilter(fromBlock='latest')
-    unwrap_event_filter = destination_contract.events.Unwrap.createFilter(fromBlock='latest')
-
     while True:
-        for event in deposit_event_filter.get_new_entries():
+        latest_source_block = source_w3.eth.block_number
+        from_source_block = max(latest_source_block - 5, 0)
+
+        deposit_filter = source_contract.events.Deposit.create_filter(fromBlock=from_source_block, toBlock=latest_source_block)
+        deposit_events = deposit_filter.get_all_entries()
+        for event in deposit_events:
             handle_deposit_event(event, destination_contract, destination_w3, destination_info)
 
-        for event in unwrap_event_filter.get_new_entries():
+        latest_destination_block = destination_w3.eth.block_number
+        from_destination_block = max(latest_destination_block - 5, 0)
+
+        unwrap_filter = destination_contract.events.Unwrap.create_filter(fromBlock=from_destination_block, toBlock=latest_destination_block)
+        unwrap_events = unwrap_filter.get_all_entries()
+        for event in unwrap_events:
             handle_unwrap_event(event, source_contract, source_w3, source_info)
 
         time.sleep(5)
