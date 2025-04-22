@@ -1,18 +1,23 @@
-import os
 from web3 import Web3
 import json
 import time
+import os
 
 try:
-	from dotenv import load_dotenv
-	load_dotenv()
+  from dotenv import load_dotenv
+  load_dotenv()
 except ImportError:
-	pass
+  pass
 
 ADMIN_ADDRESS = os.getenv("ADMIN_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 AVAX_RPC = os.getenv("AVAX_RPC")
 BSC_RPC = os.getenv("BSC_RPC")
+
+#print(f"ADMIN_ADDRESS={ADMIN_ADDRESS}")
+#print(f"PRIVATE_KEY={'set' if PRIVATE_KEY else 'not set'}")
+#print(f"AVAX_RPC={AVAX_RPC}")
+#print(f"BSC_RPC={BSC_RPC}")
 
 
 def connect_to(chain):
@@ -57,11 +62,11 @@ def handle_deposit_event(event, destination_contract, destination_w3, destinatio
         deposit_data["recipient"],
         deposit_data["amount"]
     ).buildTransaction({
-        "from": Web3.toChecksumAddress(from_address),
-        "nonce": destination_w3.eth.get_transaction_count(Web3.toChecksumAddress(from_address)),
+        "from": Web3.to_checksum_address(from_address),
+        "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
         "gas": 2000000,
         "gasPrice": destination_w3.eth.gas_price,
-				"chainId": destination_info.get("chainId"),
+        "chainId": destination_info.get("chainId"),
     })
 
     signed_tx = destination_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
@@ -79,8 +84,8 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
         unwrap_data["recipient"],
         unwrap_data["amount"]
     ).buildTransaction({
-        "from": Web3.toChecksumAddress(from_address),
-        "nonce": source_w3.eth.get_transaction_count(Web3.toChecksumAddress(from_address)),
+        "from": Web3.to_checksum_address(from_address),
+        "nonce": source_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
         "gas": 2000000,
         "gasPrice": source_w3.eth.gas_price,
 				"chainId": source_info.get("chainId"),
@@ -102,11 +107,11 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
     destination_w3 = connect_to('destination')
 
     source_contract = source_w3.eth.contract(
-        address=Web3.toChecksumAddress(source_info['address']),
+        address=Web3.to_checksum_address(source_info['address']),
         abi=source_info['abi']
     )
     destination_contract = destination_w3.eth.contract(
-        address=Web3.toChecksumAddress(destination_info['address']),
+        address=Web3.to_checksum_address(destination_info['address']),
         abi=destination_info['abi']
     )
 
@@ -120,8 +125,11 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
             latest_source_block = source_w3.eth.block_number
             from_source_block = max(last_source_block, latest_source_block - 5)
 
-            deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=latest_source_block)
-            deposit_events = deposit_filter.get_all_entries()
+            if from_source_block <= latest_source_block:
+              deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=latest_source_block)
+              deposit_events = deposit_filter.get_all_entries()
+            else:
+              deposit_events = []
 
             for event in deposit_events:
                 print(f"Deposit event detected: {event}")
@@ -132,8 +140,11 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
             latest_destination_block = destination_w3.eth.block_number
             from_destination_block = max(last_destination_block, latest_destination_block - 5)
 
-            unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=latest_destination_block)
-            unwrap_events = unwrap_filter.get_all_entries()
+            if from_destination_block <= latest_destination_block:
+              unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=latest_destination_block)
+              unwrap_events = unwrap_filter.get_all_entries()
+            else:
+              unwrap_events = []
 
             for event in unwrap_events:
                 print(f"Unwrap event detected: {event}")
