@@ -91,7 +91,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
     print(f"Sent withdraw tx on source chain: {tx_hash.hex()}")
 
 
-def scan_blocks(contract_info_file="contract_info.json"):
+def scan_blocks(chain=None, contract_info_file="contract_info.json"):
     with open(contract_info_file, 'r') as f:
         all_contract_info = json.load(f)
 
