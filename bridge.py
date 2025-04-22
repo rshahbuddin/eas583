@@ -1,84 +1,95 @@
-from web3 import Web3
-from web3.middleware import geth_poa_middleware
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from web3 import Web3
 import json
 import time
 
 load_dotenv()
+
 ADMIN_ADDRESS = os.getenv("ADMIN_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+AVAX_RPC = os.getenv("AVAX_RPC")
+BSC_RPC = os.getenv("BSC_RPC")
 
-if ADMIN_ADDRESS is None or PRIVATE_KEY is None:
-    raise Exception("ADMIN_ADDRESS or PRIVATE_KEY not set in .env")
 
 def connect_to(chain):
-    if chain == 'source':  
-        api_url = "https://api.avax-test.network/ext/bc/C/rpc"
-    elif chain == 'destination':  
-        api_url = "https://data-seed-prebsc-1-s1.binance.org:8545/"
+    if chain == 'source':
+        api_url = AVAX_RPC
+    elif chain == 'destination':
+        api_url = BSC_RPC
     else:
         raise ValueError(f"Unknown chain: {chain}")
 
     w3 = Web3(Web3.HTTPProvider(api_url))
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+    try:
+        from web3.middleware import geth_poa_middleware
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    except ImportError:
+        pass
+
+    if not w3.isConnected():
+        raise ConnectionError(f"Failed to connect to {chain} RPC at {api_url}")
+
     return w3
 
-def get_contract_info(chain, contract_info="contract_info.json"):
+
+def get_contract_info(chain, contract_info_file="contract_info.json"):
     try:
-        with open(contract_info, 'r') as f:
+        with open(contract_info_file, 'r') as f:
             contracts = json.load(f)
     except Exception as e:
-        print(f"Failed to read contract info\nPlease contact your instructor\n{e}")
+        print(f"Failed to read contract info: {e}")
         return {}
     return contracts.get(chain, {})
 
-def send_signed_transaction(w3, txn, private_key):
-    signed_txn = w3.eth.account.sign_transaction(txn, private_key=private_key)
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return receipt
 
-def handle_deposit_event(event, destination_contract, destination_w3):
+def handle_deposit_event(event, destination_contract, destination_w3, destination_info):
     deposit_data = event['args']
-    nonce = destination_w3.eth.get_transaction_count(ADMIN_ADDRESS)
-    txn = destination_contract.functions.wrap(
+
+    from_address = ADMIN_ADDRESS
+
+    tx = destination_contract.functions.wrap(
         deposit_data["token"],
         deposit_data["recipient"],
         deposit_data["amount"]
-    ).build_transaction({
-        "from": ADMIN_ADDRESS,
-        "nonce": nonce,
+    ).buildTransaction({
+        "from": Web3.toChecksumAddress(from_address),
+        "nonce": destination_w3.eth.get_transaction_count(Web3.toChecksumAddress(from_address)),
         "gas": 2000000,
         "gasPrice": destination_w3.eth.gas_price,
-        "chainId": 97  
+				"chainId": destination_info.get("chainId"),
     })
-    receipt = send_signed_transaction(destination_w3, txn, PRIVATE_KEY)
-    print(f"Wrap tx sent: {receipt.transactionHash.hex()}")
 
-def handle_unwrap_event(event, source_contract, source_w3):
+    signed_tx = destination_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = destination_w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    print(f"Sent wrap tx on destination chain: {tx_hash.hex()}")
+
+
+def handle_unwrap_event(event, source_contract, source_w3, source_info):
     unwrap_data = event['args']
-    nonce = source_w3.eth.get_transaction_count(ADMIN_ADDRESS)
-    txn = source_contract.functions.withdraw(
+
+    from_address = ADMIN_ADDRESS
+
+    tx = source_contract.functions.withdraw(
         unwrap_data["token"],
         unwrap_data["recipient"],
         unwrap_data["amount"]
-    ).build_transaction({
-        "from": ADMIN_ADDRESS,
-        "nonce": nonce,
+    ).buildTransaction({
+        "from": Web3.toChecksumAddress(from_address),
+        "nonce": source_w3.eth.get_transaction_count(Web3.toChecksumAddress(from_address)),
         "gas": 2000000,
         "gasPrice": source_w3.eth.gas_price,
-        "chainId": 43113  
+				"chainId": source_info.get("chainId"),
     })
-    receipt = send_signed_transaction(source_w3, txn, PRIVATE_KEY)
-    print(f"Withdraw tx sent: {receipt.transactionHash.hex()}")
 
-def scan_blocks(chain, contract_info="contract_info.json"):
-    if chain not in ['source', 'destination']:
-        print(f"Invalid chain: {chain}")
-        return 0
+    signed_tx = source_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = source_w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    print(f"Sent withdraw tx on source chain: {tx_hash.hex()}")
 
-    with open(contract_info, 'r') as f:
+
+def scan_blocks(contract_info_file="contract_info.json"):
+    with open(contract_info_file, 'r') as f:
         all_contract_info = json.load(f)
 
     source_info = all_contract_info['source']
@@ -87,30 +98,51 @@ def scan_blocks(chain, contract_info="contract_info.json"):
     source_w3 = connect_to('source')
     destination_w3 = connect_to('destination')
 
-    source_contract = source_w3.eth.contract(address=source_info['address'], abi=source_info['abi'])
-    destination_contract = destination_w3.eth.contract(address=destination_info['address'], abi=destination_info['abi'])
+    source_contract = source_w3.eth.contract(
+        address=Web3.toChecksumAddress(source_info['address']),
+        abi=source_info['abi']
+    )
+    destination_contract = destination_w3.eth.contract(
+        address=Web3.toChecksumAddress(destination_info['address']),
+        abi=destination_info['abi']
+    )
 
-    print(f"Starting event scanner for {chain}...")
+    last_source_block = source_w3.eth.block_number
+    last_destination_block = destination_w3.eth.block_number
+
+    print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
 
     while True:
-        if chain == 'source':
+        try:
             latest_source_block = source_w3.eth.block_number
-            from_source_block = max(latest_source_block - 5, 0)
+            from_source_block = max(last_source_block, latest_source_block - 5)
 
-            deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block)
+            deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=latest_source_block)
             deposit_events = deposit_filter.get_all_entries()
 
             for event in deposit_events:
-                handle_deposit_event(event, destination_contract, destination_w3)
+                print(f"Deposit event detected: {event}")
+                handle_deposit_event(event, destination_contract, destination_w3, destination_info)
 
-        if chain == 'destination':
+            last_source_block = latest_source_block + 1
+
             latest_destination_block = destination_w3.eth.block_number
-            from_destination_block = max(latest_destination_block - 5, 0)
+            from_destination_block = max(last_destination_block, latest_destination_block - 5)
 
-            unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block)
+            unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=latest_destination_block)
             unwrap_events = unwrap_filter.get_all_entries()
 
             for event in unwrap_events:
-                handle_unwrap_event(event, source_contract, source_w3)
+                print(f"Unwrap event detected: {event}")
+                handle_unwrap_event(event, source_contract, source_w3, source_info)
+
+            last_destination_block = latest_destination_block + 1
+
+        except Exception as e:
+            print(f"Error during block scanning or event handling: {e}")
 
         time.sleep(5)
+
+
+if __name__ == "__main__":
+    scan_blocks()
