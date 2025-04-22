@@ -115,48 +115,60 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
         abi=destination_info['abi']
     )
 
-    last_source_block = source_w3.eth.block_number
-    last_destination_block = destination_w3.eth.block_number
+    
+    last_source_block = source_w3.eth.block_number - 10
+    last_destination_block = destination_w3.eth.block_number - 10
 
     print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
 
     while True:
         try:
             latest_source_block = source_w3.eth.block_number
-            from_source_block = max(last_source_block, latest_source_block - 5)
-
-            if from_source_block <= latest_source_block:
-              deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=latest_source_block)
-              deposit_events = deposit_filter.get_all_entries()
+            if last_source_block > latest_source_block:
+                # no new blocks yet, just wait
+                print("No new source blocks yet...")
+                deposit_events = []
             else:
-              deposit_events = []
+                # get deposit events from last_source_block+1 to latest_source_block
+                from_source_block = last_source_block + 1
+                to_source_block = latest_source_block
+                print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
+
+                deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=to_source_block)
+                deposit_events = deposit_filter.get_all_entries()
 
             for event in deposit_events:
                 print(f"Deposit event detected: {event}")
                 handle_deposit_event(event, destination_contract, destination_w3, destination_info)
 
-            last_source_block = latest_source_block + 1
+            # update last_source_block only if new blocks were processed
+            if deposit_events or latest_source_block > last_source_block:
+                last_source_block = latest_source_block
 
+            # same for destination unwrap events
             latest_destination_block = destination_w3.eth.block_number
-            from_destination_block = max(last_destination_block, latest_destination_block - 5)
-
-            if from_destination_block <= latest_destination_block:
-              unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=latest_destination_block)
-              unwrap_events = unwrap_filter.get_all_entries()
+            if last_destination_block > latest_destination_block:
+                print("No new destination blocks yet...")
+                unwrap_events = []
             else:
-              unwrap_events = []
+                from_destination_block = last_destination_block + 1
+                to_destination_block = latest_destination_block
+                print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
+
+                unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=to_destination_block)
+                unwrap_events = unwrap_filter.get_all_entries()
 
             for event in unwrap_events:
                 print(f"Unwrap event detected: {event}")
                 handle_unwrap_event(event, source_contract, source_w3, source_info)
 
-            last_destination_block = latest_destination_block + 1
+            if unwrap_events or latest_destination_block > last_destination_block:
+                last_destination_block = latest_destination_block
 
         except Exception as e:
             print(f"Error during block scanning or event handling: {e}")
 
         time.sleep(5)
-
 
 if __name__ == "__main__":
     scan_blocks()
