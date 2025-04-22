@@ -73,7 +73,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
     source_contract = source_w3.eth.contract(address=source_info['address'], abi=source_info['abi'])
     destination_contract = destination_w3.eth.contract(address=destination_info['address'], abi=destination_info['abi'])
 
-		latest_source_block = source_w3.eth.block_number
+    latest_source_block = source_w3.eth.block_number
     latest_destination_block = destination_w3.eth.block_number
 
 
