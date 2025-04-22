@@ -35,21 +35,23 @@ def get_contract_info(chain, contract_info="contract_info.json"):
     return contracts.get(chain, {})
 
 def handle_deposit_event(event, destination_contract, destination_w3, contract_info):
-    print("Deposit event detected:", event)
     deposit_data = event['args']
-    print(f"Deposit Data: {deposit_data}")
-    
-    destination_contract.functions.wrap(deposit_data["amount"], deposit_data["recipient"]).transact({
+    destination_contract.functions.wrap(
+        deposit_data["token"],
+        deposit_data["recipient"],
+        deposit_data["amount"]
+    ).transact({
         "from": contract_info["destination_chain_wallet_address"],
         "gas": 2000000
     })
 
 def handle_unwrap_event(event, source_contract, source_w3, contract_info):
-    print("Unwrap event detected:", event)
     unwrap_data = event['args']
-    print(f"Unwrap Data: {unwrap_data}")
-    
-    source_contract.functions.withdraw(unwrap_data["amount"], unwrap_data["recipient"]).transact({
+    source_contract.functions.withdraw(
+        unwrap_data["token"],       
+        unwrap_data["recipient"],
+        unwrap_data["amount"]
+    ).transact({
         "from": contract_info["source_chain_wallet_address"],
         "gas": 2000000
     })
