@@ -1,10 +1,13 @@
 import os
-from dotenv import load_dotenv
 from web3 import Web3
 import json
 import time
 
-load_dotenv()
+try:
+	from dotenv import load_dotenv
+	load_dotenv()
+except ImportError:
+	pass
 
 ADMIN_ADDRESS = os.getenv("ADMIN_ADDRESS")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
