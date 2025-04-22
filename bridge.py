@@ -73,11 +73,15 @@ def scan_blocks(chain, contract_info="contract_info.json"):
     source_contract = source_w3.eth.contract(address=source_info['address'], abi=source_info['abi'])
     destination_contract = destination_w3.eth.contract(address=destination_info['address'], abi=destination_info['abi'])
 
+		latest_source_block = source_w3.eth.block_number
+    latest_destination_block = destination_w3.eth.block_number
+
+
     while True:
         latest_source_block = source_w3.eth.block_number
         from_source_block = max(latest_source_block - 5, 0)
 
-        deposit_filter = source_contract.events.Deposit.create_filter()
+        deposit_filter = source_contract.events.Deposit.create_filter(from_block=latest_source_block)
         deposit_events = deposit_filter.get_all_entries()
         for event in deposit_events:
             handle_deposit_event(event, destination_contract, destination_w3, destination_info)
@@ -85,7 +89,7 @@ def scan_blocks(chain, contract_info="contract_info.json"):
         latest_destination_block = destination_w3.eth.block_number
         from_destination_block = max(latest_destination_block - 5, 0)
 
-        unwrap_filter = destination_contract.events.Unwrap.create_filter()
+        unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=latest_destination_block)
         unwrap_events = unwrap_filter.get_all_entries()
         for event in unwrap_events:
             handle_unwrap_event(event, source_contract, source_w3, source_info)
