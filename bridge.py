@@ -74,7 +74,7 @@ def handle_deposit_event(event, destination_contract, destination_w3, destinatio
     print("Type of signed_tx:", type(signed_tx))
     print("signed_tx fields:", dir(signed_tx))
 
-    tx_hash = destination_w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    tx_hash = destination_w3.eth.send_raw_transaction(signed_tx.raw_transaction)
     print(f"Sent wrap tx on destination chain: {tx_hash.hex()}")
 
 
@@ -96,7 +96,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
     })
 
     signed_tx = source_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-    tx_hash = source_w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    tx_hash = source_w3.eth.send_raw_transaction(signed_tx.raw_transaction)
     print(f"Sent withdraw tx on source chain: {tx_hash.hex()}")
 
 
