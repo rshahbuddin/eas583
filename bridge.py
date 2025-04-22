@@ -1,62 +1,77 @@
 from web3 import Web3
-from web3.providers.rpc import HTTPProvider
-from web3.middleware import ExtraDataToPOAMiddleware #Necessary for POA chains
-from datetime import datetime
+from web3.middleware import geth_poa_middleware
+from dotenv import load_dotenv
+import os
 import json
-import pandas as pd
 import time
 
+load_dotenv()
+ADMIN_ADDRESS = os.getenv("ADMIN_ADDRESS")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+
+if ADMIN_ADDRESS is None or PRIVATE_KEY is None:
+    raise Exception("ADMIN_ADDRESS or PRIVATE_KEY not set in .env")
 
 def connect_to(chain):
-    if chain == 'source':  # The source contract chain is avax
-        api_url = f"https://api.avax-test.network/ext/bc/C/rpc" #AVAX C-chain testnet
+    if chain == 'source':  
+        api_url = "https://api.avax-test.network/ext/bc/C/rpc"
+    elif chain == 'destination':  
+        api_url = "https://data-seed-prebsc-1-s1.binance.org:8545/"
+    else:
+        raise ValueError(f"Unknown chain: {chain}")
 
-    if chain == 'destination':  # The destination contract chain is bsc
-        api_url = f"https://data-seed-prebsc-1-s1.binance.org:8545/" #BSC testnet
-
-    if chain in ['source','destination']:
-        w3 = Web3(Web3.HTTPProvider(api_url))
-        # inject the poa compatibility middleware to the innermost layer
-        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+    w3 = Web3(Web3.HTTPProvider(api_url))
+    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
     return w3
 
-
 def get_contract_info(chain, contract_info="contract_info.json"):
-    """
-        Load the contract_info file into a dictionary
-        This function is used by the autograder and will likely be useful to you
-    """
     try:
-        with open(contract_info, 'r')  as f:
+        with open(contract_info, 'r') as f:
             contracts = json.load(f)
     except Exception as e:
-        print( f"Failed to read contract info\nPlease contact your instructor\n{e}" )
-        return 0
+        print(f"Failed to read contract info\nPlease contact your instructor\n{e}")
+        return {}
     return contracts.get(chain, {})
 
-def handle_deposit_event(event, destination_contract, destination_w3, contract_info):
+def send_signed_transaction(w3, txn, private_key):
+    signed_txn = w3.eth.account.sign_transaction(txn, private_key=private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    return receipt
+
+def handle_deposit_event(event, destination_contract, destination_w3):
     deposit_data = event['args']
-    destination_contract.functions.wrap(
+    nonce = destination_w3.eth.get_transaction_count(ADMIN_ADDRESS)
+    txn = destination_contract.functions.wrap(
         deposit_data["token"],
         deposit_data["recipient"],
         deposit_data["amount"]
-    ).transact({
-        "from": contract_info["destination_chain_wallet_address"],
-        "gas": 2000000
+    ).build_transaction({
+        "from": ADMIN_ADDRESS,
+        "nonce": nonce,
+        "gas": 2000000,
+        "gasPrice": destination_w3.eth.gas_price,
+        "chainId": 97  
     })
+    receipt = send_signed_transaction(destination_w3, txn, PRIVATE_KEY)
+    print(f"Wrap tx sent: {receipt.transactionHash.hex()}")
 
-def handle_unwrap_event(event, source_contract, source_w3, contract_info):
+def handle_unwrap_event(event, source_contract, source_w3):
     unwrap_data = event['args']
-    source_contract.functions.withdraw(
-        unwrap_data["token"],       
+    nonce = source_w3.eth.get_transaction_count(ADMIN_ADDRESS)
+    txn = source_contract.functions.withdraw(
+        unwrap_data["token"],
         unwrap_data["recipient"],
         unwrap_data["amount"]
-    ).transact({
-        "from": contract_info["source_chain_wallet_address"],
-        "gas": 2000000
+    ).build_transaction({
+        "from": ADMIN_ADDRESS,
+        "nonce": nonce,
+        "gas": 2000000,
+        "gasPrice": source_w3.eth.gas_price,
+        "chainId": 43113  
     })
-
-
+    receipt = send_signed_transaction(source_w3, txn, PRIVATE_KEY)
+    print(f"Withdraw tx sent: {receipt.transactionHash.hex()}")
 
 def scan_blocks(chain, contract_info="contract_info.json"):
     if chain not in ['source', 'destination']:
@@ -75,25 +90,27 @@ def scan_blocks(chain, contract_info="contract_info.json"):
     source_contract = source_w3.eth.contract(address=source_info['address'], abi=source_info['abi'])
     destination_contract = destination_w3.eth.contract(address=destination_info['address'], abi=destination_info['abi'])
 
-    latest_source_block = source_w3.eth.block_number
-    latest_destination_block = destination_w3.eth.block_number
-
+    print(f"Starting event scanner for {chain}...")
 
     while True:
-        latest_source_block = source_w3.eth.block_number
-        from_source_block = max(latest_source_block - 5, 0)
+        if chain == 'source':
+            latest_source_block = source_w3.eth.block_number
+            from_source_block = max(latest_source_block - 5, 0)
 
-        deposit_filter = source_contract.events.Deposit.create_filter(from_block=latest_source_block)
-        deposit_events = deposit_filter.get_all_entries()
-        for event in deposit_events:
-            handle_deposit_event(event, destination_contract, destination_w3, destination_info)
+            deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block)
+            deposit_events = deposit_filter.get_all_entries()
 
-        latest_destination_block = destination_w3.eth.block_number
-        from_destination_block = max(latest_destination_block - 5, 0)
+            for event in deposit_events:
+                handle_deposit_event(event, destination_contract, destination_w3)
 
-        unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=latest_destination_block)
-        unwrap_events = unwrap_filter.get_all_entries()
-        for event in unwrap_events:
-            handle_unwrap_event(event, source_contract, source_w3, source_info)
+        if chain == 'destination':
+            latest_destination_block = destination_w3.eth.block_number
+            from_destination_block = max(latest_destination_block - 5, 0)
+
+            unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block)
+            unwrap_events = unwrap_filter.get_all_entries()
+
+            for event in unwrap_events:
+                handle_unwrap_event(event, source_contract, source_w3)
 
         time.sleep(5)
