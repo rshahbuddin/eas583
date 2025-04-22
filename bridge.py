@@ -14,8 +14,8 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 AVAX_RPC = os.getenv("AVAX_RPC")
 BSC_RPC = os.getenv("BSC_RPC")
 
-#print(f"ADMIN_ADDRESS={ADMIN_ADDRESS}")
-#print(f"PRIVATE_KEY={'set' if PRIVATE_KEY else 'not set'}")
+print(f"ADMIN_ADDRESS={ADMIN_ADDRESS}")
+print(f"PRIVATE_KEY={'set' if PRIVATE_KEY else 'not set'}")
 print(f"AVAX_RPC={AVAX_RPC}")
 print(f"BSC_RPC={BSC_RPC}")
 
@@ -70,6 +70,10 @@ def handle_deposit_event(event, destination_contract, destination_w3, destinatio
     })
 
     signed_tx = destination_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+
+    print("Type of signed_tx:", type(signed_tx))
+    print("signed_tx fields:", dir(signed_tx))
+
     tx_hash = destination_w3.eth.send_raw_transaction(signed_tx.rawTransaction)
     print(f"Sent wrap tx on destination chain: {tx_hash.hex()}")
 
