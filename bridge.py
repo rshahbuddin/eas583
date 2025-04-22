@@ -16,8 +16,8 @@ BSC_RPC = os.getenv("BSC_RPC")
 
 #print(f"ADMIN_ADDRESS={ADMIN_ADDRESS}")
 #print(f"PRIVATE_KEY={'set' if PRIVATE_KEY else 'not set'}")
-#print(f"AVAX_RPC={AVAX_RPC}")
-#print(f"BSC_RPC={BSC_RPC}")
+print(f"AVAX_RPC={AVAX_RPC}")
+print(f"BSC_RPC={BSC_RPC}")
 
 
 def connect_to(chain):
@@ -61,7 +61,7 @@ def handle_deposit_event(event, destination_contract, destination_w3, destinatio
         deposit_data["token"],
         deposit_data["recipient"],
         deposit_data["amount"]
-    ).buildTransaction({
+    ).build_transaction({
         "from": Web3.to_checksum_address(from_address),
         "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
         "gas": 2000000,
@@ -83,7 +83,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
         unwrap_data["token"],
         unwrap_data["recipient"],
         unwrap_data["amount"]
-    ).buildTransaction({
+    ).build_transaction({
         "from": Web3.to_checksum_address(from_address),
         "nonce": source_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address)),
         "gas": 2000000,
