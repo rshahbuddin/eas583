@@ -112,8 +112,8 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
             gas_price_multiplier = 1.2 + (0.1 * attempt)
             
             tx = source_contract.functions.withdraw(
-                unwrap_data["token"],
-                unwrap_data["recipient"],
+                unwrap_data["underlying_token"],
+                unwrap_data["to"],
                 unwrap_data["amount"]
             ).build_transaction({
                 "from": Web3.to_checksum_address(from_address),
