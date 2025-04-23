@@ -141,7 +141,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
                 print(f"Failed to send withdraw transaction after {max_retries} attempts")
 
 
-def scan_blocks(chain=None, contract_info_file="contract_info.json"):
+def scan_blocks(chain=None, contract_info_file="contract_info.json", max_iterations=50):
     with open(contract_info_file, 'r') as f:
         all_contract_info = json.load(f)
 
@@ -167,8 +167,15 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
 
     max_blocks_per_query = 5
     
+    iteration_count = 0
+    
     while True:
         try:
+            iteration_count += 1
+            if max_iterations and iteration_count > max_iterations:
+                print(f"Reached maximum iteration count ({max_iterations}). Exiting.")
+                return
+            
             latest_source_block = source_w3.eth.block_number
             if latest_source_block <= last_source_block:
                 print("No new source blocks yet...")
@@ -247,8 +254,8 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
                 destination_w3 = connect_to('destination')
             except Exception as reconnect_error:
                 print(f"Failed to reconnect: {reconnect_error}")
-                time.sleep(15)  
+                time.sleep(15)
 
 
 if __name__ == "__main__":
-    scan_blocks()
+    scan_blocks(max_iterations=50)  
