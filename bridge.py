@@ -1,5 +1,4 @@
 from web3 import Web3
-from bridge_utils import load_config, get_event_signature_hash
 import json
 import time
 import os
@@ -102,54 +101,52 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
 
 
 def scan_blocks():
-    config = load_config()
-    admin_address = config["admin"]
-    private_key = config["private_key"]
-    source_web3 = Web3(Web3.HTTPProvider(config["source_rpc"]))
-    dest_web3 = Web3(Web3.HTTPProvider(config["dest_rpc"]))
-    source = config["source_contract"]
-    dest = config["dest_contract"]
+    with open('contract_info.json') as f:
+        info = json.load(f)
 
-    start_block_src = source_web3.eth.block_number - 10
-    start_block_dest = dest_web3.eth.block_number - 10
+    admin = info["admin"]
+    private_key = info["private_key"]
 
-    deposit_events = source.events.Deposit.get_logs(fromBlock=start_block_src, toBlock='latest')
+    source_w3 = Web3(Web3.HTTPProvider(info["source_rpc"]))
+    dest_w3 = Web3(Web3.HTTPProvider(info["dest_rpc"]))
 
+    source = source_w3.eth.contract(address=info["source_contract"]["address"], abi=info["source_contract"]["abi"])
+    dest = dest_w3.eth.contract(address=info["destination_contract"]["address"], abi=info["destination_contract"]["abi"])
+
+    source_block = source_w3.eth.block_number - 10
+    dest_block = dest_w3.eth.block_number - 10
+
+    deposit_events = source.events.Deposit.get_logs(fromBlock=source_block, toBlock='latest')
     for event in deposit_events:
         token = event.args.token
         recipient = event.args.recipient
         amount = event.args.amount
-        print("Deposit event detected:", event)
 
-        nonce = dest_web3.eth.get_transaction_count(admin_address)
+        nonce = dest_w3.eth.get_transaction_count(admin)
         tx = dest.functions.wrap(token, recipient, amount).build_transaction({
-            'from': admin_address,
-            'nonce': nonce,
-            'gas': 500_000,
-            'gasPrice': dest_web3.eth.gas_price,
+            "from": admin,
+            "nonce": nonce,
+            "gas": 500_000,
+            "gasPrice": dest_w3.eth.gas_price,
         })
-        signed_tx = dest_web3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = dest_web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        print("Sent wrap tx on destination chain:", tx_hash.hex())
+        signed = dest_w3.eth.account.sign_transaction(tx, private_key)
+        dest_w3.eth.send_raw_transaction(signed.rawTransaction)
 
-    unwrap_events = dest.events.Unwrap.get_logs(fromBlock=start_block_dest, toBlock='latest')
-
+    unwrap_events = dest.events.Unwrap.get_logs(fromBlock=dest_block, toBlock='latest')
     for event in unwrap_events:
-        wrapped_token = event.args.token
+        token = event.args.token
         recipient = event.args.recipient
         amount = event.args.amount
-        print("Unwrap event detected:", event)
 
-        nonce = source_web3.eth.get_transaction_count(admin_address)
-        tx = source.functions.withdraw(wrapped_token, recipient, amount).build_transaction({
-            'from': admin_address,
-            'nonce': nonce,
-            'gas': 500_000,
-            'gasPrice': source_web3.eth.gas_price,
+        nonce = source_w3.eth.get_transaction_count(admin)
+        tx = source.functions.withdraw(token, recipient, amount).build_transaction({
+            "from": admin,
+            "nonce": nonce,
+            "gas": 500_000,
+            "gasPrice": source_w3.eth.gas_price,
         })
-        signed_tx = source_web3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = source_web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        print("Sent withdraw tx on source chain:", tx_hash.hex())
+        signed = source_w3.eth.account.sign_transaction(tx, private_key)
+        source_w3.eth.send_raw_transaction(signed.rawTransaction)
 
 if __name__ == "__main__":
     scan_blocks()
