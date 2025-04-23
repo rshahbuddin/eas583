@@ -112,8 +112,8 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
             gas_price_multiplier = 1.2 + (0.1 * attempt)
             
             tx = source_contract.functions.withdraw(
-                unwrap_data["underlying_token"],
-                unwrap_data["to"],
+                unwrap_data["underlying_token"],  
+                unwrap_data["to"],                
                 unwrap_data["amount"]
             ).build_transaction({
                 "from": Web3.to_checksum_address(from_address),
@@ -141,7 +141,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
                 print(f"Failed to send withdraw transaction after {max_retries} attempts")
 
 
-def scan_blocks(chain=None, contract_info_file="contract_info.json", max_iterations=50):
+def scan_blocks(chain=None, contract_info_file="contract_info.json"):
     with open(contract_info_file, 'r') as f:
         all_contract_info = json.load(f)
 
@@ -160,102 +160,51 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json", max_iterati
         abi=destination_info['abi']
     )
 
-    last_source_block = source_w3.eth.block_number - 5
-    last_destination_block = destination_w3.eth.block_number - 5
-
-    print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
-
-    max_blocks_per_query = 5
+    current_source_block = source_w3.eth.block_number
+    current_destination_block = destination_w3.eth.block_number
     
-    iteration_count = 0
+    blocks_to_scan = 5
+    from_source_block = max(1, current_source_block - blocks_to_scan)
+    to_source_block = current_source_block
     
-    while True:
-        try:
-            iteration_count += 1
-            if max_iterations and iteration_count > max_iterations:
-                print(f"Reached maximum iteration count ({max_iterations}). Exiting.")
-                return
+    from_destination_block = max(1, current_destination_block - blocks_to_scan)
+    to_destination_block = current_destination_block
+
+    print(f"Starting block scan from source: {from_source_block} to {to_source_block}, destination: {from_destination_block} to {to_destination_block}")
+
+    print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
+    try:
+        deposit_filter = source_contract.events.Deposit.create_filter(
+            from_block=from_source_block, 
+            to_block=to_source_block
+        )
+        deposit_events = deposit_filter.get_all_entries()
+        
+        for event in deposit_events:
+            print(f"Deposit event detected: {event}")
+            handle_deposit_event(event, destination_contract, destination_w3, destination_info)
             
-            latest_source_block = source_w3.eth.block_number
-            if latest_source_block <= last_source_block:
-                print("No new source blocks yet...")
-            else:
-                from_source_block = last_source_block + 1
-                to_source_block = min(latest_source_block, from_source_block + max_blocks_per_query - 1)
-                
-                if from_source_block <= to_source_block:
-                    print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
-                    try:
-                        deposit_filter = source_contract.events.Deposit.create_filter(
-                            from_block=from_source_block, 
-                            to_block=to_source_block
-                        )
-                        deposit_events = deposit_filter.get_all_entries()
-                        
-                        for event in deposit_events:
-                            print(f"Deposit event detected: {event}")
-                            handle_deposit_event(event, destination_contract, destination_w3, destination_info)
-                            
-                        last_source_block = to_source_block
-                    except Exception as e:
-                        print(f"Error checking Deposit events: {e}")
-                        if "limit exceeded" in str(e):
-                            max_blocks_per_query = max(1, max_blocks_per_query - 1)
-                            print(f"Reducing block query range to {max_blocks_per_query}")
-                            time.sleep(5)
-                else:
-                    print(f"Skipping invalid source block range: {from_source_block} > {to_source_block}")
-
-            latest_destination_block = destination_w3.eth.block_number
-            if latest_destination_block <= last_destination_block:
-                print("No new destination blocks yet...")
-            else:
-                from_destination_block = last_destination_block + 1
-                to_destination_block = min(latest_destination_block, from_destination_block + max_blocks_per_query - 1)
-                
-                if from_destination_block <= to_destination_block:
-                    print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
-                    try:
-                        unwrap_filter = destination_contract.events.Unwrap.create_filter(
-                            from_block=from_destination_block,
-                            to_block=to_destination_block
-                        )
-                        unwrap_events = unwrap_filter.get_all_entries()
-                        
-                        for event in unwrap_events:
-                            print(f"Unwrap event detected: {event}")
-                            handle_unwrap_event(event, source_contract, source_w3, source_info)
-                            
-                        last_destination_block = to_destination_block
-                    except Exception as e:
-                        print(f"Error checking Unwrap events: {e}")
-                        if "limit exceeded" in str(e):
-                            max_blocks_per_query = max(1, max_blocks_per_query - 1)
-                            print(f"Reducing block query range to {max_blocks_per_query}")
-                            time.sleep(5)
-                else:
-                    print(f"Skipping invalid destination block range: {from_destination_block} > {to_destination_block}")
-
-            if latest_source_block > last_source_block or latest_destination_block > last_destination_block:
-                time.sleep(2)
-            else:
-                time.sleep(5)
-
-        except Exception as e:
-            print(f"Error during block scanning: {e}")
-            if "limit exceeded" in str(e):
-                print("Rate limit exceeded, waiting longer before next attempt")
-                time.sleep(10)
-            else:
-                time.sleep(5)
-
-            try:
-                source_w3 = connect_to('source')
-                destination_w3 = connect_to('destination')
-            except Exception as reconnect_error:
-                print(f"Failed to reconnect: {reconnect_error}")
-                time.sleep(15)
+    except Exception as e:
+        print(f"Error checking Deposit events: {e}")
+        
+    print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
+    try:
+        unwrap_filter = destination_contract.events.Unwrap.create_filter(
+            from_block=from_destination_block,
+            to_block=to_destination_block
+        )
+        unwrap_events = unwrap_filter.get_all_entries()
+        
+        for event in unwrap_events:
+            print(f"Unwrap event detected: {event}")
+            handle_unwrap_event(event, source_contract, source_w3, source_info)
+            
+    except Exception as e:
+        print(f"Error checking Unwrap events: {e}")
+    
+    print("Block scanning complete")
+    return
 
 
 if __name__ == "__main__":
-    scan_blocks(max_iterations=50)  
+    scan_blocks()
