@@ -125,7 +125,7 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
 
     print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
 
-    while True:
+    #while True:
         try:
             latest_source_block = source_w3.eth.block_number
             if last_source_block > latest_source_block:
@@ -177,7 +177,7 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
         except Exception as e:
             print(f"Error during block scanning or event handling: {e}")
 
-        time.sleep(5)
+        #time.sleep(5)
 
 if __name__ == "__main__":
     scan_blocks()
