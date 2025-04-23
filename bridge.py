@@ -100,7 +100,7 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
     print(f"Sent withdraw tx on source chain: {tx_hash.hex()}")
 
 
-def scan_blocks():
+def scan_blocks(chain_name, last_scanned_block=None):
     with open('contract_info.json') as f:
         info = json.load(f)
 
@@ -113,40 +113,39 @@ def scan_blocks():
     source = source_w3.eth.contract(address=info["source_contract"]["address"], abi=info["source_contract"]["abi"])
     dest = dest_w3.eth.contract(address=info["destination_contract"]["address"], abi=info["destination_contract"]["abi"])
 
-    source_block = source_w3.eth.block_number - 10
-    dest_block = dest_w3.eth.block_number - 10
+    if chain_name == 'source':
+        events = source.events.Deposit.get_logs(fromBlock=source_w3.eth.block_number - 10, toBlock='latest')
+        for event in events:
+            token = event.args.token
+            recipient = event.args.recipient
+            amount = event.args.amount
 
-    deposit_events = source.events.Deposit.get_logs(fromBlock=source_block, toBlock='latest')
-    for event in deposit_events:
-        token = event.args.token
-        recipient = event.args.recipient
-        amount = event.args.amount
+            nonce = dest_w3.eth.get_transaction_count(admin)
+            tx = dest.functions.wrap(token, recipient, amount).build_transaction({
+                "from": admin,
+                "nonce": nonce,
+                "gas": 500_000,
+                "gasPrice": dest_w3.eth.gas_price,
+            })
+            signed = dest_w3.eth.account.sign_transaction(tx, private_key)
+            dest_w3.eth.send_raw_transaction(signed.rawTransaction)
 
-        nonce = dest_w3.eth.get_transaction_count(admin)
-        tx = dest.functions.wrap(token, recipient, amount).build_transaction({
-            "from": admin,
-            "nonce": nonce,
-            "gas": 500_000,
-            "gasPrice": dest_w3.eth.gas_price,
-        })
-        signed = dest_w3.eth.account.sign_transaction(tx, private_key)
-        dest_w3.eth.send_raw_transaction(signed.rawTransaction)
+    elif chain_name == 'destination':
+        events = dest.events.Unwrap.get_logs(fromBlock=dest_w3.eth.block_number - 10, toBlock='latest')
+        for event in events:
+            token = event.args.token
+            recipient = event.args.recipient
+            amount = event.args.amount
 
-    unwrap_events = dest.events.Unwrap.get_logs(fromBlock=dest_block, toBlock='latest')
-    for event in unwrap_events:
-        token = event.args.token
-        recipient = event.args.recipient
-        amount = event.args.amount
-
-        nonce = source_w3.eth.get_transaction_count(admin)
-        tx = source.functions.withdraw(token, recipient, amount).build_transaction({
-            "from": admin,
-            "nonce": nonce,
-            "gas": 500_000,
-            "gasPrice": source_w3.eth.gas_price,
-        })
-        signed = source_w3.eth.account.sign_transaction(tx, private_key)
-        source_w3.eth.send_raw_transaction(signed.rawTransaction)
+            nonce = source_w3.eth.get_transaction_count(admin)
+            tx = source.functions.withdraw(token, recipient, amount).build_transaction({
+                "from": admin,
+                "nonce": nonce,
+                "gas": 500_000,
+                "gasPrice": source_w3.eth.gas_price,
+            })
+            signed = source_w3.eth.account.sign_transaction(tx, private_key)
+            source_w3.eth.send_raw_transaction(signed.rawTransaction)
 
 if __name__ == "__main__":
     scan_blocks()
