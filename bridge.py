@@ -89,10 +89,10 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
         unwrap_data["amount"]
     ).build_transaction({
         "from": Web3.to_checksum_address(from_address),
-        "nonce": destination_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address), "pending"),
+        "nonce": source_w3.eth.get_transaction_count(Web3.to_checksum_address(from_address), "pending"),
         "gas": 2000000,
-        "gasPrice": int(destination_w3.eth.gas_price * 1.2),
-				"chainId": source_info.get("chainId"),
+        "gasPrice": int(source_w3.eth.gas_price * 1.2),
+        "chainId": source_info.get("chainId"),
     })
 
     signed_tx = source_w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
@@ -129,27 +129,28 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
         try:
             latest_source_block = source_w3.eth.block_number
             if last_source_block > latest_source_block:
-                # no new blocks yet, just wait
                 print("No new source blocks yet...")
                 deposit_events = []
             else:
-                # get deposit events from last_source_block+1 to latest_source_block
                 from_source_block = last_source_block + 1
                 to_source_block = latest_source_block
-                print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
 
-                deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=to_source_block)
-                deposit_events = deposit_filter.get_all_entries()
+                if from_source_block > to_source_block:
+                  print(f"Skipping invalid source block range: {from_source_block} > {to_source_block}")
+                  deposit_events = []
+                else:
+                  print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
+
+                  deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=to_source_block)
+                  deposit_events = deposit_filter.get_all_entries()
 
             for event in deposit_events:
                 print(f"Deposit event detected: {event}")
                 handle_deposit_event(event, destination_contract, destination_w3, destination_info)
 
-            # update last_source_block only if new blocks were processed
             if deposit_events or latest_source_block > last_source_block:
                 last_source_block = latest_source_block
 
-            # same for destination unwrap events
             latest_destination_block = destination_w3.eth.block_number
             if last_destination_block > latest_destination_block:
                 print("No new destination blocks yet...")
@@ -157,10 +158,14 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
             else:
                 from_destination_block = last_destination_block + 1
                 to_destination_block = latest_destination_block
-                print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
 
-                unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=to_destination_block)
-                unwrap_events = unwrap_filter.get_all_entries()
+                if from_destination_block > to_destination_block:
+                  print(f"Skipping invalid destination block range: {from_destination_block} > {to_destination_block}")
+                  unwrap_events = []
+                else:
+                  print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
+                  unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=to_destination_block)
+                  unwrap_events = unwrap_filter.get_all_entries()
 
             for event in unwrap_events:
                 print(f"Unwrap event detected: {event}")
