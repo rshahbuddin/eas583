@@ -1,4 +1,5 @@
 from web3 import Web3
+from bridge_utils import load_config, get_event_signature_hash
 import json
 import time
 import os
@@ -100,83 +101,55 @@ def handle_unwrap_event(event, source_contract, source_w3, source_info):
     print(f"Sent withdraw tx on source chain: {tx_hash.hex()}")
 
 
-def scan_blocks(chain=None, contract_info_file="contract_info.json"):
-    with open(contract_info_file, 'r') as f:
-        all_contract_info = json.load(f)
+def scan_blocks():
+    config = load_config()
+    admin_address = config["admin"]
+    private_key = config["private_key"]
+    source_web3 = Web3(Web3.HTTPProvider(config["source_rpc"]))
+    dest_web3 = Web3(Web3.HTTPProvider(config["dest_rpc"]))
+    source = config["source_contract"]
+    dest = config["dest_contract"]
 
-    source_info = all_contract_info['source']
-    destination_info = all_contract_info['destination']
+    start_block_src = source_web3.eth.block_number - 10
+    start_block_dest = dest_web3.eth.block_number - 10
 
-    source_w3 = connect_to('source')
-    destination_w3 = connect_to('destination')
+    deposit_events = source.events.Deposit.get_logs(fromBlock=start_block_src, toBlock='latest')
 
-    source_contract = source_w3.eth.contract(
-        address=Web3.to_checksum_address(source_info['address']),
-        abi=source_info['abi']
-    )
-    destination_contract = destination_w3.eth.contract(
-        address=Web3.to_checksum_address(destination_info['address']),
-        abi=destination_info['abi']
-    )
+    for event in deposit_events:
+        token = event.args.token
+        recipient = event.args.recipient
+        amount = event.args.amount
+        print("Deposit event detected:", event)
 
-    
-    last_source_block = source_w3.eth.block_number - 10
-    last_destination_block = destination_w3.eth.block_number - 10
+        nonce = dest_web3.eth.get_transaction_count(admin_address)
+        tx = dest.functions.wrap(token, recipient, amount).build_transaction({
+            'from': admin_address,
+            'nonce': nonce,
+            'gas': 500_000,
+            'gasPrice': dest_web3.eth.gas_price,
+        })
+        signed_tx = dest_web3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = dest_web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        print("Sent wrap tx on destination chain:", tx_hash.hex())
 
-    print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
+    unwrap_events = dest.events.Unwrap.get_logs(fromBlock=start_block_dest, toBlock='latest')
 
-    #while True:
-    try:
-        latest_source_block = source_w3.eth.block_number
-        if last_source_block > latest_source_block:
-            print("No new source blocks yet...")
-            deposit_events = []
-        else:
-            from_source_block = last_source_block + 1
-            to_source_block = latest_source_block
+    for event in unwrap_events:
+        wrapped_token = event.args.token
+        recipient = event.args.recipient
+        amount = event.args.amount
+        print("Unwrap event detected:", event)
 
-            if from_source_block > to_source_block:
-              print(f"Skipping invalid source block range: {from_source_block} > {to_source_block}")
-              deposit_events = []
-            else:
-              print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
-              deposit_filter = source_contract.events.Deposit.create_filter(from_block=from_source_block, to_block=to_source_block)
-              deposit_events = deposit_filter.get_all_entries()
-
-        for event in deposit_events:
-            print(f"Deposit event detected: {event}")
-            handle_deposit_event(event, destination_contract, destination_w3, destination_info)
-
-        if deposit_events or latest_source_block > last_source_block:
-            last_source_block = latest_source_block
-
-        latest_destination_block = destination_w3.eth.block_number
-        if last_destination_block > latest_destination_block:
-            print("No new destination blocks yet...")
-            unwrap_events = []
-        else:
-            from_destination_block = last_destination_block + 1
-            to_destination_block = latest_destination_block
-
-            if from_destination_block > to_destination_block:
-              print(f"Skipping invalid destination block range: {from_destination_block} > {to_destination_block}")
-              unwrap_events = []
-            else:
-              print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
-              unwrap_filter = destination_contract.events.Unwrap.create_filter(from_block=from_destination_block, to_block=to_destination_block)
-              unwrap_events = unwrap_filter.get_all_entries()
-
-        for event in unwrap_events:
-            print(f"Unwrap event detected: {event}")
-            handle_unwrap_event(event, source_contract, source_w3, source_info)
-
-        if unwrap_events or latest_destination_block > last_destination_block:
-            last_destination_block = latest_destination_block
-
-    except Exception as e:
-        print(f"Error during block scanning or event handling: {e}")
-
-        #time.sleep(5)
+        nonce = source_web3.eth.get_transaction_count(admin_address)
+        tx = source.functions.withdraw(wrapped_token, recipient, amount).build_transaction({
+            'from': admin_address,
+            'nonce': nonce,
+            'gas': 500_000,
+            'gasPrice': source_web3.eth.gas_price,
+        })
+        signed_tx = source_web3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = source_web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        print("Sent withdraw tx on source chain:", tx_hash.hex())
 
 if __name__ == "__main__":
     scan_blocks()
