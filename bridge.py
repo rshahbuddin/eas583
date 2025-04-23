@@ -120,8 +120,8 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
     )
 
     
-    last_source_block = source_w3.eth.block_number - 10
-    last_destination_block = destination_w3.eth.block_number - 10
+    last_source_block = source_w3.eth.block_number - 1
+    last_destination_block = destination_w3.eth.block_number - 1
 
     print(f"Starting block scan from source: {last_source_block}, destination: {last_destination_block}")
 
@@ -133,7 +133,7 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
               deposit_events = []
           else:
               from_source_block = last_source_block + 1
-              to_source_block = latest_source_block
+              to_source_block = min(latest_source_block, from_source_block + 9)
 
               if from_source_block > to_source_block:
                 print(f"Skipping invalid source block range: {from_source_block} > {to_source_block}")
@@ -156,7 +156,7 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
               unwrap_events = []
           else:
               from_destination_block = last_destination_block + 1
-              to_destination_block = latest_destination_block
+              to_destination_block = min(latest_destination_block, from_destination_block + 9)
 
               if from_destination_block > to_destination_block:
                 print(f"Skipping invalid destination block range: {from_destination_block} > {to_destination_block}")
@@ -175,8 +175,10 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
 
       except Exception as e:
           print(f"Error during block scanning or event handling: {e}")
-
-          time.sleep(5)
+          if "limit exceeded" in str(e):
+            time.sleep(10)
+          else:
+            time.sleep(5)
 
 if __name__ == "__main__":
     scan_blocks()
