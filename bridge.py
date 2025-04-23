@@ -180,8 +180,8 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
                     print(f"Checking Deposit events from block {from_source_block} to {to_source_block}")
                     try:
                         deposit_filter = source_contract.events.Deposit.create_filter(
-                            fromBlock=from_source_block, 
-                            toBlock=to_source_block
+                            from_block=from_source_block, 
+                            to_block=to_source_block
                         )
                         deposit_events = deposit_filter.get_all_entries()
                         
@@ -210,8 +210,8 @@ def scan_blocks(chain=None, contract_info_file="contract_info.json"):
                     print(f"Checking Unwrap events from block {from_destination_block} to {to_destination_block}")
                     try:
                         unwrap_filter = destination_contract.events.Unwrap.create_filter(
-                            fromBlock=from_destination_block,
-                            toBlock=to_destination_block
+                            from_block=from_destination_block,
+                            to_block=to_destination_block
                         )
                         unwrap_events = unwrap_filter.get_all_entries()
                         
